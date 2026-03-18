@@ -12,6 +12,7 @@ export interface Database {
           custom_response_headers: Record<string, string>
           custom_response_body: string
           custom_response_content_type: string
+          custom_response_delay_ms: number
         }
         Insert: {
           id: string
@@ -28,6 +29,7 @@ export interface Database {
           custom_response_headers?: Record<string, string>
           custom_response_body?: string
           custom_response_content_type?: string
+          custom_response_delay_ms?: number
         }
       }
       requests: {
@@ -73,4 +75,5 @@ export interface CustomResponse {
   headers: Record<string, string>
   body: string
   contentType: string
+  delayMs: number
 }

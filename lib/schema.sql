@@ -8,7 +8,8 @@ create table if not exists endpoints (
   custom_response_status integer default 200 not null,
   custom_response_headers jsonb default '{}'::jsonb not null,
   custom_response_body text default '' not null,
-  custom_response_content_type text default 'application/json' not null
+  custom_response_content_type text default 'application/json' not null,
+  custom_response_delay_ms integer default 0 not null
 );
 
 create table if not exists requests (
@@ -38,3 +39,4 @@ alter publication supabase_realtime add table requests;
 
 -- Migration: add duration_ms to existing installs
 alter table requests add column if not exists duration_ms integer;
+alter table endpoints add column if not exists custom_response_delay_ms integer default 0;

@@ -1,25 +1,33 @@
 import { NextRequest, NextResponse, after } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { cacheGet, cacheSet, endpointCacheKey } from '@/lib/redis'
 
 const MAX_REQUESTS = 500
 
 export async function handler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const startTime = Date.now()
+  // Use the timestamp injected by middleware (when request first arrived) for accurate duration
+  const requestStart = Number(request.headers.get('X-Request-Start')) || Date.now()
   const { id } = await params
 
-  // Run endpoint fetch + body read in parallel — saves ~50% of this phase
-  const [endpointResult, body] = await Promise.all([
-    supabase.from('endpoints').select().eq('id', id).single(),
+  // Try in-process cache first (zero latency), then fall back to Supabase
+  const cacheKey = endpointCacheKey(id)
+  const [cached, body] = await Promise.all([
+    Promise.resolve(cacheGet(cacheKey)),
     request.text().then(t => t || null).catch(() => null),
   ])
 
-  const { data: endpoint, error: endpointError } = endpointResult
+  let endpoint: Record<string, unknown> | null = cached
 
-  if (endpointError || endpoint == null) {
-    return NextResponse.json({ error: 'Endpoint not found' }, { status: 404 })
+  if (endpoint == null) {
+    const { data, error } = await supabase.from('endpoints').select().eq('id', id).single()
+    if (error || data == null) {
+      return NextResponse.json({ error: 'Endpoint not found' }, { status: 404 })
+    }
+    endpoint = data as Record<string, unknown>
+    cacheSet(cacheKey, endpoint)
   }
 
-  if (endpoint.request_count >= MAX_REQUESTS) {
+  if ((endpoint.request_count as number) >= MAX_REQUESTS) {
     return NextResponse.json(
       { error: 'Request limit exceeded. Max 500 requests per endpoint.' },
       { status: 429 }
@@ -44,12 +52,18 @@ export async function handler(request: NextRequest, { params }: { params: Promis
 
   // Build response headers synchronously
   const responseHeaders = new Headers()
-  responseHeaders.set('Content-Type', endpoint.custom_response_content_type)
+  responseHeaders.set('Content-Type', endpoint.custom_response_content_type as string)
   const customHeaders = endpoint.custom_response_headers as Record<string, string>
   Object.entries(customHeaders).forEach(([k, v]) => responseHeaders.set(k, v))
   responseHeaders.set('X-CallbackPro-Endpoint', id)
 
-  const duration_ms = Date.now() - startTime
+  // Honour configured delay before sending response
+  const delayMs = (endpoint.custom_response_delay_ms as number) ?? 0
+  if (delayMs > 0) {
+    await new Promise(resolve => setTimeout(resolve, delayMs))
+  }
+
+  const duration_ms = Date.now() - requestStart
 
   // Defer all DB writes to AFTER the response is sent to the client
   // Client gets the response immediately — DB writes happen in background
@@ -75,13 +89,13 @@ export async function handler(request: NextRequest, { params }: { params: Promis
 
     await supabase
       .from('endpoints')
-      .update({ request_count: endpoint.request_count + 1 })
+      .update({ request_count: (endpoint.request_count as number) + 1 })
       .eq('id', id)
   })
 
   // Return immediately — no waiting for DB
-  return new NextResponse(endpoint.custom_response_body || null, {
-    status: endpoint.custom_response_status,
+  return new NextResponse(endpoint.custom_response_body as string || null, {
+    status: endpoint.custom_response_status as number,
     headers: responseHeaders,
   })
 }
