@@ -35,7 +35,7 @@ export async function handler(request: NextRequest, { params }: { params: Promis
 
   const headersObj: Record<string, string> = {}
   request.headers.forEach((v, k) => {
-    if (k !== 'host' && k !== 'content-length') headersObj[k] = v
+    if (k !== 'host' && k !== 'content-length' && !k.startsWith('x-vercel-')) headersObj[k] = v
   })
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
