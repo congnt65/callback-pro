@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { WebhookRequest } from "@/lib/types";
 
+interface DetailProps {
+    request: WebhookRequest;
+    onClose: () => void;
+}
+
 function tryPrettyJson(
     s: string | null,
 ): string | null {
@@ -50,12 +55,14 @@ function HeaderRow({
 
 interface Props {
     request: WebhookRequest;
+    onClose: () => void;
 }
 
 type Tab = "headers" | "body" | "query";
 
 export default function WebhookDetail({
     request,
+    onClose,
 }: Props) {
     const [tab, setTab] =
         useState<Tab>("body");
@@ -110,6 +117,33 @@ export default function WebhookDetail({
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
+            {/* Back button */}
+            <div
+                style={{
+                    borderColor:
+                        "#30363d",
+                }}
+                className="flex items-center px-3 py-1.5 border-b shrink-0"
+            >
+                <button
+                    onClick={onClose}
+                    style={{
+                        color: "#8b949e",
+                    }}
+                    className="flex items-center gap-1 text-xs hover:text-white transition-colors"
+                >
+                    <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                    >
+                        <path d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06l4.25-4.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L4.81 7h7.44a.75.75 0 0 1 0 1.5H4.81l2.97 2.97a.75.75 0 0 1 0 1.06Z" />
+                    </svg>
+                    Go back
+                </button>
+            </div>
+            {/* Back button */}
             {/* Request info bar */}
             <div
                 style={{

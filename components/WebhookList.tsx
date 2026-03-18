@@ -86,6 +86,7 @@ function timeAgo(dateStr: string) {
 interface Props {
     requests: WebhookRequest[];
     selectedId: string | null;
+    hookUrl: string;
     onSelect: (
         req: WebhookRequest,
     ) => void;
@@ -100,6 +101,7 @@ interface Props {
 export default function WebhookList({
     requests,
     selectedId,
+    hookUrl,
     onSelect,
     onDelete,
     onDeleteAll,
@@ -166,34 +168,178 @@ export default function WebhookList({
                         }
                     />
                 )}
-                <div className="flex flex-col items-center justify-center h-full gap-3 py-16">
+                <div className="flex flex-col gap-4 p-4 overflow-y-auto h-full">
+                    {/* Quick-start header */}
+                    <div className="flex flex-col gap-1">
+                        <p
+                            style={{
+                                color: "#e6edf3",
+                            }}
+                            className="text-xs font-semibold"
+                        >
+                            Ready to
+                            receive
+                            requests
+                        </p>
+                        <p
+                            style={{
+                                color: "#6e7681",
+                            }}
+                            className="text-xs"
+                        >
+                            Send any
+                            HTTP request
+                            to your
+                            endpoint URL
+                            and it will
+                            appear here
+                            in
+                            real-time.
+                        </p>
+                    </div>
+
+                    {/* Step 1 — curl */}
                     <div
                         style={{
-                            color: "#30363d",
+                            borderColor:
+                                "#30363d",
+                            backgroundColor:
+                                "#161b22",
                         }}
-                        className="text-7xl select-none"
+                        className="rounded border p-3 flex flex-col gap-2"
                     >
-                        &#x29BF;
+                        <p
+                            style={{
+                                color: "#8b949e",
+                            }}
+                            className="text-[10px] font-semibold uppercase tracking-wider"
+                        >
+                            curl
+                        </p>
+                        <pre
+                            style={{
+                                color: "#58a6ff",
+                                fontFamily:
+                                    "monospace",
+                                whiteSpace:
+                                    "pre-wrap",
+                                wordBreak:
+                                    "break-all",
+                            }}
+                            className="text-[10px]"
+                        >{`curl -X POST ${hookUrl} \\
+  -H "Content-Type: application/json" \\
+  -d '{"hello":"world"}'`}</pre>
                     </div>
-                    <p
+
+                    {/* Step 2 — fetch */}
+                    <div
                         style={{
-                            color: "#8b949e",
+                            borderColor:
+                                "#30363d",
+                            backgroundColor:
+                                "#161b22",
                         }}
-                        className="text-sm"
+                        className="rounded border p-3 flex flex-col gap-2"
                     >
-                        Waiting for
-                        requests...
-                    </p>
-                    <p
+                        <p
+                            style={{
+                                color: "#8b949e",
+                            }}
+                            className="text-[10px] font-semibold uppercase tracking-wider"
+                        >
+                            JavaScript
+                            fetch
+                        </p>
+                        <pre
+                            style={{
+                                color: "#58a6ff",
+                                fontFamily:
+                                    "monospace",
+                                whiteSpace:
+                                    "pre-wrap",
+                                wordBreak:
+                                    "break-all",
+                            }}
+                            className="text-[10px]"
+                        >{`fetch("${hookUrl}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ hello: "world" }),
+})`}</pre>
+                    </div>
+
+                    {/* Features */}
+                    <div
                         style={{
-                            color: "#6e7681",
+                            borderColor:
+                                "#30363d",
                         }}
-                        className="text-xs"
+                        className="border-t pt-3 flex flex-col gap-2"
                     >
-                        Send an HTTP
-                        request to your
-                        endpoint
-                    </p>
+                        <p
+                            style={{
+                                color: "#8b949e",
+                            }}
+                            className="text-[10px] font-semibold uppercase tracking-wider"
+                        >
+                            Features
+                        </p>
+                        {[
+                            [
+                                "\u26A1",
+                                "Real-time updates via Supabase Realtime",
+                            ],
+                            [
+                                "\uD83D\uDCCB",
+                                "Inspect headers, body, query params",
+                            ],
+                            [
+                                "\u23F1",
+                                "Response delay simulation",
+                            ],
+                            [
+                                "\uD83D\uDD27",
+                                "Custom status, headers & body",
+                            ],
+                            [
+                                "\uD83D\uDCC4",
+                                "Export requests to CSV",
+                            ],
+                            [
+                                "\uD83D\uDD04",
+                                "Generate a new endpoint anytime",
+                            ],
+                        ].map(
+                            ([
+                                icon,
+                                text,
+                            ]) => (
+                                <div
+                                    key={
+                                        text
+                                    }
+                                    className="flex items-start gap-2"
+                                >
+                                    <span className="text-xs shrink-0">
+                                        {
+                                            icon
+                                        }
+                                    </span>
+                                    <span
+                                        style={{
+                                            color: "#6e7681",
+                                        }}
+                                        className="text-xs"
+                                    >
+                                        {
+                                            text
+                                        }
+                                    </span>
+                                </div>
+                            ),
+                        )}
+                    </div>
                 </div>
             </>
         );

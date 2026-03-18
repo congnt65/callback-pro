@@ -14,6 +14,7 @@ import type { CsvColumnKey } from "@/components/WebhookList";
 import WebhookDetail from "@/components/WebhookDetail";
 import ResponseConfig from "@/components/ResponseConfig";
 import EndpointHeader from "@/components/EndpointHeader";
+import TryItOut from "@/components/TryItOut";
 
 const STORAGE_KEY =
     "callbackpro_endpoint";
@@ -753,6 +754,16 @@ export default function Home() {
                                     selectedRequest?.id ??
                                     null
                                 }
+                                hookUrl={
+                                    (typeof window !==
+                                    "undefined"
+                                        ? window
+                                              .location
+                                              .origin
+                                        : "") +
+                                    "/api/hook/" +
+                                    endpointId
+                                }
                                 onSelect={
                                     handleSelect
                                 }
@@ -785,29 +796,258 @@ export default function Home() {
                             request={
                                 selectedRequest
                             }
+                            onClose={() =>
+                                setSelectedRequest(
+                                    null,
+                                )
+                            }
                         />
                     ) : (
                         <div
                             style={{
                                 color: "#6e7681",
+                                backgroundColor:
+                                    "#0d1117",
                             }}
-                            className="flex flex-col items-center justify-center h-full gap-3"
+                            className="flex flex-col h-full overflow-y-auto p-6 gap-6"
                         >
-                            <svg
-                                width="40"
-                                height="40"
-                                viewBox="0 0 16 16"
-                                fill="currentColor"
-                                opacity="0.3"
+                            {/* Header */}
+                            <div className="flex flex-col gap-1">
+                                <p
+                                    style={{
+                                        color: "#e6edf3",
+                                    }}
+                                    className="text-sm font-semibold"
+                                >
+                                    No
+                                    request
+                                    selected
+                                </p>
+                                <p
+                                    style={{
+                                        color: "#6e7681",
+                                    }}
+                                    className="text-xs"
+                                >
+                                    Click
+                                    a
+                                    request
+                                    on
+                                    the
+                                    left
+                                    to
+                                    inspect
+                                    its
+                                    details,
+                                    or
+                                    send
+                                    a
+                                    new
+                                    one
+                                    to
+                                    your
+                                    endpoint.
+                                </p>
+                            </div>
+
+                            {/* Stats row */}
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    {
+                                        label: "Requests captured",
+                                        value: String(
+                                            requests.length,
+                                        ),
+                                    },
+                                    {
+                                        label: "Capacity remaining",
+                                        value: String(
+                                            Math.max(
+                                                0,
+                                                500 -
+                                                    requestCount,
+                                            ),
+                                        ),
+                                    },
+                                ].map(
+                                    ({
+                                        label,
+                                        value,
+                                    }) => (
+                                        <div
+                                            key={
+                                                label
+                                            }
+                                            style={{
+                                                backgroundColor:
+                                                    "#161b22",
+                                                borderColor:
+                                                    "#30363d",
+                                            }}
+                                            className="rounded border p-3 flex flex-col gap-1"
+                                        >
+                                            <span
+                                                style={{
+                                                    color: "#e6edf3",
+                                                }}
+                                                className="text-lg font-bold font-mono"
+                                            >
+                                                {
+                                                    value
+                                                }
+                                            </span>
+                                            <span
+                                                style={{
+                                                    color: "#6e7681",
+                                                }}
+                                                className="text-xs"
+                                            >
+                                                {
+                                                    label
+                                                }
+                                            </span>
+                                        </div>
+                                    ),
+                                )}
+                            </div>
+
+                            {/* Try it out */}
+                            <TryItOut
+                                endpointId={
+                                    endpointId
+                                }
+                            />
+
+                            {/* What you can inspect */}
+                            <div
+                                style={{
+                                    borderColor:
+                                        "#30363d",
+                                }}
+                                className="border-t pt-4 flex flex-col gap-2"
                             >
-                                <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm7-3.25v2.992l2.028.812a.75.75 0 0 1-.557 1.392l-2.5-1A.751.751 0 0 1 7 8.25v-3.5a.75.75 0 0 1 1.5 0Z" />
-                            </svg>
-                            <p className="text-sm">
-                                Select a
-                                request
-                                to
-                                inspect
-                            </p>
+                                <p
+                                    style={{
+                                        color: "#8b949e",
+                                    }}
+                                    className="text-[10px] font-semibold uppercase tracking-wider"
+                                >
+                                    What
+                                    you
+                                    can
+                                    inspect
+                                </p>
+                                {[
+                                    [
+                                        "Headers",
+                                        "All request headers (Vercel internals stripped)",
+                                    ],
+                                    [
+                                        "Body",
+                                        "Raw or pretty-printed JSON body",
+                                    ],
+                                    [
+                                        "Query params",
+                                        "Parsed key-value pairs from the URL",
+                                    ],
+                                    [
+                                        "Duration",
+                                        "Server-side processing time in ms",
+                                    ],
+                                    [
+                                        "IP address",
+                                        "Originating client IP",
+                                    ],
+                                ].map(
+                                    ([
+                                        title,
+                                        desc,
+                                    ]) => (
+                                        <div
+                                            key={
+                                                title
+                                            }
+                                            className="flex gap-2"
+                                        >
+                                            <span
+                                                style={{
+                                                    color: "#58a6ff",
+                                                    minWidth: 90,
+                                                }}
+                                                className="text-xs font-mono shrink-0"
+                                            >
+                                                {
+                                                    title
+                                                }
+                                            </span>
+                                            <span
+                                                style={{
+                                                    color: "#6e7681",
+                                                }}
+                                                className="text-xs"
+                                            >
+                                                {
+                                                    desc
+                                                }
+                                            </span>
+                                        </div>
+                                    ),
+                                )}
+                            </div>
+
+                            {/* Tips */}
+                            <div
+                                style={{
+                                    borderColor:
+                                        "#30363d",
+                                }}
+                                className="border-t pt-4 flex flex-col gap-2"
+                            >
+                                <p
+                                    style={{
+                                        color: "#8b949e",
+                                    }}
+                                    className="text-[10px] font-semibold uppercase tracking-wider"
+                                >
+                                    Tips
+                                </p>
+                                {[
+                                    "Use the Response tab to simulate custom status codes, headers, and body.",
+                                    "Set a response delay to test timeout handling in your app.",
+                                    "Export all captured requests to CSV from the list toolbar.",
+                                    "Click + New in the endpoint bar to generate a fresh endpoint.",
+                                ].map(
+                                    (
+                                        tip,
+                                    ) => (
+                                        <div
+                                            key={
+                                                tip
+                                            }
+                                            className="flex items-start gap-2"
+                                        >
+                                            <span
+                                                style={{
+                                                    color: "#3fb950",
+                                                }}
+                                                className="text-xs shrink-0"
+                                            >
+                                                →
+                                            </span>
+                                            <span
+                                                style={{
+                                                    color: "#6e7681",
+                                                }}
+                                                className="text-xs"
+                                            >
+                                                {
+                                                    tip
+                                                }
+                                            </span>
+                                        </div>
+                                    ),
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
