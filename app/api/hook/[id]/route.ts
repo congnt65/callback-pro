@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 const MAX_REQUESTS = 500
 
 export async function handler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const startTime = Date.now()
   const { id } = await params
 
   // Run endpoint fetch + body read in parallel — saves ~50% of this phase
@@ -48,24 +49,34 @@ export async function handler(request: NextRequest, { params }: { params: Promis
   Object.entries(customHeaders).forEach(([k, v]) => responseHeaders.set(k, v))
   responseHeaders.set('X-CallbackPro-Endpoint', id)
 
+  const duration_ms = Date.now() - startTime
+
   // Defer all DB writes to AFTER the response is sent to the client
   // Client gets the response immediately — DB writes happen in background
   after(async () => {
-    await Promise.all([
-      supabase.from('requests').insert({
-        endpoint_id: id,
-        method,
-        path: pathname,
-        query_params: queryParams,
-        headers: headersObj,
-        body,
-        ip,
-      }),
-      supabase
-        .from('endpoints')
-        .update({ request_count: endpoint.request_count + 1 })
-        .eq('id', id),
-    ])
+    const requestData = {
+      endpoint_id: id,
+      method,
+      path: pathname,
+      query_params: queryParams,
+      headers: headersObj,
+      body,
+      ip,
+      duration_ms,
+    }
+
+    const { error: insertError } = await supabase.from('requests').insert(requestData)
+
+    // Fallback: if insert failed (e.g. duration_ms column not yet migrated), retry without it
+    if (insertError) {
+      const { duration_ms: _d, ...requestDataFallback } = requestData
+      await supabase.from('requests').insert(requestDataFallback)
+    }
+
+    await supabase
+      .from('endpoints')
+      .update({ request_count: endpoint.request_count + 1 })
+      .eq('id', id)
   })
 
   // Return immediately — no waiting for DB

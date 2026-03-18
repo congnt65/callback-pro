@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import { WebhookRequest } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import WebhookList from "@/components/WebhookList";
+import type { CsvColumnKey } from "@/components/WebhookList";
 import WebhookDetail from "@/components/WebhookDetail";
 import ResponseConfig from "@/components/ResponseConfig";
 import EndpointHeader from "@/components/EndpointHeader";
@@ -295,6 +296,292 @@ export default function Home() {
         await initEndpoint(id);
     }
 
+    function exportToCsv(
+        columns: CsvColumnKey[],
+    ) {
+        const escape = (v: string) =>
+            '"' +
+            v.replaceAll('"', '""') +
+            '"';
+
+        // Collect all unique header keys across all requests
+        const headerKeys: string[] = [];
+        if (
+            columns.includes("headers")
+        ) {
+            const seen =
+                new Set<string>();
+            for (const r of requests) {
+                for (const k of Object.keys(
+                    r.headers ?? {},
+                )) {
+                    if (!seen.has(k)) {
+                        seen.add(k);
+                        headerKeys.push(
+                            k,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Collect all unique top-level body keys (JSON objects only)
+        const bodyKeys: string[] = [];
+        if (columns.includes("body")) {
+            const seen =
+                new Set<string>();
+            for (const r of requests) {
+                try {
+                    const parsed =
+                        r.body
+                            ? JSON.parse(
+                                  r.body,
+                              )
+                            : null;
+                    if (
+                        parsed &&
+                        typeof parsed ===
+                            "object" &&
+                        !Array.isArray(
+                            parsed,
+                        )
+                    ) {
+                        for (const k of Object.keys(
+                            parsed as object,
+                        )) {
+                            if (
+                                !seen.has(
+                                    k,
+                                )
+                            ) {
+                                seen.add(
+                                    k,
+                                );
+                                bodyKeys.push(
+                                    k,
+                                );
+                            }
+                        }
+                    }
+                } catch {
+                    /* not JSON */
+                }
+            }
+        }
+
+        // Build CSV header row — headers/body expand into per-key columns
+        const csvHeaders: string[] = [];
+        for (const col of columns) {
+            if (col === "headers") {
+                if (
+                    headerKeys.length >
+                    0
+                ) {
+                    for (const k of headerKeys)
+                        csvHeaders.push(
+                            "header." +
+                                k,
+                        );
+                } else
+                    csvHeaders.push(
+                        "headers",
+                    );
+            } else if (col === "body") {
+                if (
+                    bodyKeys.length > 0
+                ) {
+                    for (const k of bodyKeys)
+                        csvHeaders.push(
+                            "body." + k,
+                        );
+                } else
+                    csvHeaders.push(
+                        "body",
+                    );
+            } else {
+                csvHeaders.push(col);
+            }
+        }
+
+        // Build data rows
+        const rows = requests.map(
+            (r) => {
+                const cells: string[] =
+                    [];
+                for (const col of columns) {
+                    if (
+                        col ===
+                        "headers"
+                    ) {
+                        const h =
+                            (r.headers ??
+                                {}) as Record<
+                                string,
+                                string
+                            >;
+                        if (
+                            headerKeys.length >
+                            0
+                        ) {
+                            for (const k of headerKeys)
+                                cells.push(
+                                    escape(
+                                        h[
+                                            k
+                                        ] ??
+                                            "",
+                                    ),
+                                );
+                        } else {
+                            cells.push(
+                                escape(
+                                    JSON.stringify(
+                                        h,
+                                    ),
+                                ),
+                            );
+                        }
+                    } else if (
+                        col === "body"
+                    ) {
+                        if (
+                            bodyKeys.length >
+                            0
+                        ) {
+                            let parsed: Record<
+                                string,
+                                unknown
+                            > = {};
+                            try {
+                                parsed =
+                                    r.body
+                                        ? (JSON.parse(
+                                              r.body,
+                                          ) as Record<
+                                              string,
+                                              unknown
+                                          >)
+                                        : {};
+                            } catch {
+                                /* */
+                            }
+                            for (const k of bodyKeys) {
+                                const v =
+                                    parsed[
+                                        k
+                                    ];
+                                cells.push(
+                                    escape(
+                                        v ==
+                                            null
+                                            ? ""
+                                            : typeof v ===
+                                                "object"
+                                              ? JSON.stringify(
+                                                    v,
+                                                )
+                                              : String(
+                                                    v,
+                                                ),
+                                    ),
+                                );
+                            }
+                        } else {
+                            cells.push(
+                                escape(
+                                    r.body ??
+                                        "",
+                                ),
+                            );
+                        }
+                    } else {
+                        switch (col) {
+                            case "id":
+                                cells.push(
+                                    escape(
+                                        r.id,
+                                    ),
+                                );
+                                break;
+                            case "received_at":
+                                cells.push(
+                                    escape(
+                                        r.received_at,
+                                    ),
+                                );
+                                break;
+                            case "method":
+                                cells.push(
+                                    escape(
+                                        r.method,
+                                    ),
+                                );
+                                break;
+                            case "path":
+                                cells.push(
+                                    escape(
+                                        r.path ||
+                                            "/",
+                                    ),
+                                );
+                                break;
+                            case "query_params":
+                                cells.push(
+                                    escape(
+                                        JSON.stringify(
+                                            r.query_params ??
+                                                {},
+                                        ),
+                                    ),
+                                );
+                                break;
+                            case "ip":
+                                cells.push(
+                                    escape(
+                                        r.ip ??
+                                            "",
+                                    ),
+                                );
+                                break;
+                            case "duration_ms":
+                                cells.push(
+                                    escape(
+                                        r.duration_ms ==
+                                            null
+                                            ? ""
+                                            : String(
+                                                  r.duration_ms,
+                                              ),
+                                    ),
+                                );
+                                break;
+                        }
+                    }
+                }
+                return cells.join(",");
+            },
+        );
+
+        const csv = [
+            csvHeaders.join(","),
+            ...rows,
+        ].join("\n");
+        const blob = new Blob([csv], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url =
+            URL.createObjectURL(blob);
+        const a =
+            document.createElement("a");
+        a.href = url;
+        a.download =
+            "requests-" +
+            endpointId +
+            ".csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     if (loading) {
         return (
             <div
@@ -474,6 +761,12 @@ export default function Home() {
                                 }
                                 onDeleteAll={
                                     handleDeleteAll
+                                }
+                                onExportCsv={
+                                    exportToCsv
+                                }
+                                newRequestIds={
+                                    newRequestIds
                                 }
                             />
                         ) : (

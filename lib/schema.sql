@@ -21,7 +21,8 @@ create table if not exists requests (
   body text,
   received_at timestamptz default now() not null,
   is_read boolean default false not null,
-  ip text
+  ip text,
+  duration_ms integer
 );
 
 create index if not exists requests_endpoint_id_idx on requests(endpoint_id);
@@ -34,3 +35,6 @@ create policy "Allow all on endpoints" on endpoints for all using (true) with ch
 create policy "Allow all on requests" on requests for all using (true) with check (true);
 
 alter publication supabase_realtime add table requests;
+
+-- Migration: add duration_ms to existing installs
+alter table requests add column if not exists duration_ms integer;

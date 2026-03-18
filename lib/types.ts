@@ -42,6 +42,7 @@ export interface Database {
           received_at: string
           is_read: boolean
           ip: string | null
+          duration_ms: number | null
         }
         Insert: {
           id?: string
@@ -54,6 +55,7 @@ export interface Database {
           received_at?: string
           is_read?: boolean
           ip?: string | null
+          duration_ms?: number | null
         }
         Update: {
           is_read?: boolean
