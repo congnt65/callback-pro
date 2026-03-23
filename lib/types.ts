@@ -8,6 +8,7 @@ export interface Database {
           id: string
           created_at: string
           request_count: number
+          max_requests: number
           custom_response_status: number
           custom_response_headers: Record<string, string>
           custom_response_body: string
@@ -18,6 +19,7 @@ export interface Database {
           id: string
           created_at?: string
           request_count?: number
+          max_requests?: number
           custom_response_status?: number
           custom_response_headers?: Record<string, string>
           custom_response_body?: string
@@ -25,6 +27,7 @@ export interface Database {
         }
         Update: {
           request_count?: number
+          max_requests?: number
           custom_response_status?: number
           custom_response_headers?: Record<string, string>
           custom_response_body?: string
@@ -68,6 +71,7 @@ export interface Database {
 }
 
 export type Endpoint = Database['public']['Tables']['endpoints']['Row']
+export const DEFAULT_MAX_REQUESTS = 500
 export type WebhookRequest = Database['public']['Tables']['requests']['Row']
 
 export interface CustomResponse {
@@ -76,4 +80,5 @@ export interface CustomResponse {
   body: string
   contentType: string
   delayMs: number
+  maxRequests: number
 }

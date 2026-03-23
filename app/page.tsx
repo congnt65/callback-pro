@@ -72,6 +72,10 @@ export default function Home() {
         requestCount,
         setRequestCount,
     ] = useState(0);
+    const [
+        maxRequests,
+        setMaxRequests,
+    ] = useState(500);
     const [panel, setPanel] =
         useState<Panel>("requests");
     const [loading, setLoading] =
@@ -125,7 +129,7 @@ export default function Home() {
             );
             const ep =
                 await epRes.json();
-            if (ep.error == null)
+            if (ep.error == null) {
                 setRequestCount(
                     Math.max(
                         requests.length,
@@ -133,6 +137,11 @@ export default function Home() {
                             0,
                     ),
                 );
+                setMaxRequests(
+                    ep.max_requests ??
+                        500,
+                );
+            }
             setLoading(false);
         },
         [],
@@ -678,6 +687,9 @@ export default function Home() {
                 requestCount={
                     requestCount
                 }
+                maxRequests={
+                    maxRequests
+                }
                 onGenerate={
                     generateNewEndpoint
                 }
@@ -867,7 +879,7 @@ export default function Home() {
                                         value: String(
                                             Math.max(
                                                 0,
-                                                500 -
+                                                maxRequests -
                                                     requestCount,
                                             ),
                                         ),

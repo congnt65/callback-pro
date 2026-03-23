@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { cacheGet, cacheSet, endpointCacheKey } from '@/lib/redis'
-
-const MAX_REQUESTS = 500
+import { DEFAULT_MAX_REQUESTS } from '@/lib/types'
 
 export async function handler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Use the timestamp injected by middleware (when request first arrived) for accurate duration
@@ -27,9 +26,10 @@ export async function handler(request: NextRequest, { params }: { params: Promis
     cacheSet(cacheKey, endpoint)
   }
 
-  if ((endpoint.request_count as number) >= MAX_REQUESTS) {
+  const maxRequests = (endpoint.max_requests as number) ?? DEFAULT_MAX_REQUESTS
+  if ((endpoint.request_count as number) >= maxRequests) {
     return NextResponse.json(
-      { error: 'Request limit exceeded. Max 500 requests per endpoint.' },
+      { error: `Request limit exceeded. Max ${maxRequests} requests per endpoint.` },
       { status: 429 }
     )
   }

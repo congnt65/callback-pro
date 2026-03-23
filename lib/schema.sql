@@ -5,6 +5,7 @@ create table if not exists endpoints (
   id uuid primary key,
   created_at timestamptz default now() not null,
   request_count integer default 0 not null,
+  max_requests integer default 500 not null,
   custom_response_status integer default 200 not null,
   custom_response_headers jsonb default '{}'::jsonb not null,
   custom_response_body text default '' not null,
@@ -40,3 +41,6 @@ alter publication supabase_realtime add table requests;
 -- Migration: add duration_ms to existing installs
 alter table requests add column if not exists duration_ms integer;
 alter table endpoints add column if not exists custom_response_delay_ms integer default 0;
+
+-- Migration: add configurable request limit per endpoint
+alter table endpoints add column if not exists max_requests integer default 500 not null;

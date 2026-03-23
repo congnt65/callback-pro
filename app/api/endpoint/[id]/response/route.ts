@@ -12,6 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     body: data.custom_response_body,
     contentType: data.custom_response_content_type,
     delayMs: data.custom_response_delay_ms ?? 0,
+    maxRequests: data.max_requests ?? 500,
   })
 }
 
@@ -19,7 +20,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params
     const reqBody = await request.json()
-    const { status, headers, body: responseBody, contentType, delayMs } = reqBody
+    const { status, headers, body: responseBody, contentType, delayMs, maxRequests } = reqBody
     const { data, error } = await supabase
       .from('endpoints')
       .update({
@@ -28,6 +29,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         custom_response_body: responseBody ?? '',
         custom_response_content_type: contentType ?? 'application/json',
         custom_response_delay_ms: Math.max(0, Math.min(30000, Number(delayMs) || 0)),
+        max_requests: Math.max(1, Number(maxRequests) || 500),
       })
       .eq('id', id)
       .select()

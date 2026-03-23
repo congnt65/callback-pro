@@ -5,12 +5,14 @@ import { useState } from "react";
 interface Props {
     endpointId: string;
     requestCount: number;
+    maxRequests: number;
     onGenerate: () => void;
 }
 
 export default function EndpointHeader({
     endpointId,
     requestCount,
+    maxRequests,
     onGenerate,
 }: Props) {
     const [copied, setCopied] =
@@ -53,7 +55,8 @@ export default function EndpointHeader({
 
     const pct = Math.min(
         100,
-        (requestCount / 500) * 100,
+        (requestCount / maxRequests) *
+            100,
     );
     const barColor =
         pct >= 90
@@ -175,7 +178,8 @@ export default function EndpointHeader({
                     }}
                     className="text-xs shrink-0"
                 >
-                    {requestCount} / 500
+                    {requestCount} /{" "}
+                    {maxRequests}
                 </span>
             </div>
         </div>
