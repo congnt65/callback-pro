@@ -45,6 +45,7 @@ export default function ResponseConfig({
             contentType:
                 "application/json",
             delayMs: 0,
+            maxRequests: 500,
         });
     const [saving, setSaving] =
         useState(false);
