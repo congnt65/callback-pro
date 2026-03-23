@@ -115,11 +115,11 @@ export default function Home() {
             );
             const data =
                 await res.json();
-            setRequests(
+            const requests =
                 Array.isArray(data)
                     ? data
-                    : [],
-            );
+                    : [];
+            setRequests(requests);
             const epRes = await fetch(
                 "/api/endpoint/" + id,
             );
@@ -127,8 +127,11 @@ export default function Home() {
                 await epRes.json();
             if (ep.error == null)
                 setRequestCount(
-                    ep.request_count ??
-                        0,
+                    Math.max(
+                        requests.length,
+                        ep.request_count ??
+                            0,
+                    ),
                 );
             setLoading(false);
         },
@@ -856,7 +859,7 @@ export default function Home() {
                                     {
                                         label: "Requests captured",
                                         value: String(
-                                            requests.length,
+                                            requestCount,
                                         ),
                                     },
                                     {
