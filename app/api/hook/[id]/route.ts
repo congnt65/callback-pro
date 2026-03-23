@@ -87,10 +87,15 @@ export async function handler(request: NextRequest, { params }: { params: Promis
       await supabase.from('requests').insert(requestDataFallback)
     }
 
+    const newCount = (endpoint.request_count as number) + 1
     await supabase
       .from('endpoints')
-      .update({ request_count: (endpoint.request_count as number) + 1 })
+      .update({ request_count: newCount })
       .eq('id', id)
+
+    // Keep the cache up-to-date so consecutive requests in the same warm instance
+    // see the correct count instead of repeatedly writing the same stale value.
+    cacheSet(cacheKey, { ...endpoint, request_count: newCount })
   })
 
   // Return immediately — no waiting for DB
