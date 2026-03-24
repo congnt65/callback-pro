@@ -26,8 +26,12 @@ export async function handler(request: NextRequest, { params }: { params: Promis
     cacheSet(cacheKey, endpoint)
   }
 
+  // Atomically increment request_count only if below max_requests.
+  // A single conditional UPDATE in Postgres eliminates the race condition that would
+  // occur if we did a separate SELECT (or cache read) followed by an UPDATE.
   const maxRequests = (endpoint.max_requests as number) ?? DEFAULT_MAX_REQUESTS
-  if ((endpoint.request_count as number) >= maxRequests) {
+  const { data: allowed, error: rpcError } = await supabase.rpc('try_increment_request_count', { endpoint_id: id })
+  if (rpcError || !allowed) {
     return NextResponse.json(
       { error: `Request limit exceeded. Max ${maxRequests} requests per endpoint.` },
       { status: 429 }
@@ -87,14 +91,10 @@ export async function handler(request: NextRequest, { params }: { params: Promis
       await supabase.from('requests').insert(requestDataFallback)
     }
 
-    const newCount = (endpoint.request_count as number) + 1
-    await supabase
-      .from('endpoints')
-      .update({ request_count: newCount })
-      .eq('id', id)
-
     // Keep the cache up-to-date so consecutive requests in the same warm instance
-    // see the correct count instead of repeatedly writing the same stale value.
+    // don't re-fetch from DB. The authoritative increment is already done by the
+    // try_increment_request_count RPC called before the response was sent.
+    const newCount = (endpoint.request_count as number) + 1
     cacheSet(cacheKey, { ...endpoint, request_count: newCount })
   })
 

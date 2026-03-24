@@ -44,3 +44,22 @@ alter table endpoints add column if not exists custom_response_delay_ms integer 
 
 -- Migration: add configurable request limit per endpoint
 alter table endpoints add column if not exists max_requests integer default 500 not null;
+
+-- Atomic rate-limit increment: increments request_count only when below max_requests.
+-- Returns true if the increment succeeded (request allowed), false if limit was reached.
+-- Using a single UPDATE avoids the race condition of a separate SELECT + UPDATE.
+create or replace function try_increment_request_count(endpoint_id uuid)
+returns boolean
+language plpgsql
+as $$
+declare
+  rows_updated integer;
+begin
+  update endpoints
+  set request_count = request_count + 1
+  where id = endpoint_id
+    and request_count < max_requests;
+  get diagnostics rows_updated = row_count;
+  return rows_updated > 0;
+end;
+$$;
