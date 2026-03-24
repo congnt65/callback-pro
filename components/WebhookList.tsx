@@ -98,6 +98,40 @@ interface Props {
     newRequestIds: Set<string>;
 }
 
+function matchesSearch(
+    req: WebhookRequest,
+    term: string,
+): boolean {
+    if (!term) return true;
+    const lower = term.toLowerCase();
+
+    // search in query_params values and keys
+    const qp = req.query_params;
+    for (const [k, v] of Object.entries(
+        qp ?? {},
+    )) {
+        if (
+            k
+                .toLowerCase()
+                .includes(lower) ||
+            String(v)
+                .toLowerCase()
+                .includes(lower)
+        )
+            return true;
+    }
+
+    // search in body
+    if (
+        req.body
+            ?.toLowerCase()
+            .includes(lower)
+    )
+        return true;
+
+    return false;
+}
+
 export default function WebhookList({
     requests,
     selectedId,
@@ -112,6 +146,8 @@ export default function WebhookList({
         showExportModal,
         setShowExportModal,
     ] = useState(false);
+    const [search, setSearch] =
+        useState("");
     const [
         selectedColumns,
         setSelectedColumns,
@@ -147,6 +183,12 @@ export default function WebhookList({
         onExportCsv(ordered);
         setShowExportModal(false);
     }
+
+    const filteredRequests =
+        requests.filter((r) =>
+            matchesSearch(r, search),
+        );
+
     if (requests.length === 0) {
         return (
             <>
@@ -428,8 +470,103 @@ export default function WebhookList({
                         </button>
                     </div>
                 </div>
+                {/* Search bar */}
+                <div
+                    style={{
+                        borderColor:
+                            "#30363d",
+                        backgroundColor:
+                            "#0d1117",
+                    }}
+                    className="px-3 py-2 border-b shrink-0"
+                >
+                    <div
+                        style={{
+                            backgroundColor:
+                                "#161b22",
+                            borderColor:
+                                "#30363d",
+                        }}
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded border"
+                    >
+                        <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 16 16"
+                            fill="#6e7681"
+                            className="shrink-0"
+                        >
+                            <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z" />
+                        </svg>
+                        <input
+                            type="text"
+                            value={
+                                search
+                            }
+                            onChange={(
+                                e,
+                            ) =>
+                                setSearch(
+                                    e
+                                        .target
+                                        .value,
+                                )
+                            }
+                            placeholder="Search query & body…"
+                            style={{
+                                background:
+                                    "transparent",
+                                outline:
+                                    "none",
+                                color: "#e6edf3",
+                                caretColor:
+                                    "#58a6ff",
+                            }}
+                            className="flex-1 text-xs placeholder:text-[#6e7681] min-w-0"
+                        />
+                        {search && (
+                            <button
+                                onClick={() =>
+                                    setSearch(
+                                        "",
+                                    )
+                                }
+                                style={{
+                                    color: "#6e7681",
+                                }}
+                                className="hover:text-[#e6edf3] transition-colors shrink-0"
+                            >
+                                <svg
+                                    width="10"
+                                    height="10"
+                                    viewBox="0 0 16 16"
+                                    fill="currentColor"
+                                >
+                                    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                    {search && (
+                        <p
+                            style={{
+                                color: "#6e7681",
+                            }}
+                            className="text-[10px] mt-1"
+                        >
+                            {
+                                filteredRequests.length
+                            }{" "}
+                            of{" "}
+                            {
+                                requests.length
+                            }{" "}
+                            requests
+                        </p>
+                    )}
+                </div>
                 <div className="flex-1 overflow-y-auto">
-                    {requests.map(
+                    {filteredRequests.map(
                         (req) => (
                             <div
                                 key={
