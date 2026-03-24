@@ -168,6 +168,31 @@ export default function WebhookDetail({
                     >
                         {request.path ||
                             "/"}
+                        {Object.keys(
+                            queryParams,
+                        ).length >
+                            0 && (
+                            <span
+                                style={{
+                                    color: "#8b949e",
+                                }}
+                            >
+                                {"?" +
+                                    Object.entries(
+                                        queryParams,
+                                    )
+                                        .map(
+                                            ([
+                                                k,
+                                                v,
+                                            ]) =>
+                                                `${encodeURIComponent(k)}=${encodeURIComponent(v)}`,
+                                        )
+                                        .join(
+                                            "&",
+                                        )}
+                            </span>
+                        )}
                     </span>
                 </div>
                 <div
