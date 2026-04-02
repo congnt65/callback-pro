@@ -100,20 +100,25 @@ export default function Home() {
     }, []);
 
     const initEndpoint = useCallback(
-        async (id: string) => {
-            await fetch(
-                "/api/endpoint",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/json",
+        async (
+            id: string,
+            skipCreate = false,
+        ) => {
+            if (!skipCreate) {
+                await fetch(
+                    "/api/endpoint",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+                        body: JSON.stringify(
+                            { id },
+                        ),
                     },
-                    body: JSON.stringify(
-                        { id },
-                    ),
-                },
-            );
+                );
+            }
             const res = await fetch(
                 "/api/requests/" + id,
             );
@@ -293,7 +298,27 @@ export default function Home() {
     }
 
     async function generateNewEndpoint() {
-        const id = uuidv4();
+        const createRes = await fetch(
+            "/api/endpoint",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json",
+                },
+                body: JSON.stringify(
+                    {},
+                ),
+            },
+        );
+        const created =
+            await createRes.json();
+        const id =
+            typeof created?.id ===
+            "string"
+                ? created.id
+                : uuidv4();
+
         localStorage.setItem(
             STORAGE_KEY,
             JSON.stringify({
@@ -306,7 +331,7 @@ export default function Home() {
         setRequestCount(0);
         setLoading(true);
         setEndpointId(id);
-        await initEndpoint(id);
+        await initEndpoint(id, true);
     }
 
     function exportToCsv(
