@@ -1,21 +1,28 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDataProvider } from '@/lib/data'
 
 type Params = { params: Promise<{ id: string; requestId: string }> }
 
 export async function PATCH(_req: Request, { params }: Params) {
   const { requestId } = await params
-  const { error } = await supabase
-    .from('requests')
-    .update({ is_read: true })
-    .eq('id', requestId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  try {
+    const provider = getDataProvider()
+    await provider.markRequestRead(requestId)
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  const { requestId } = await params
-  const { error } = await supabase.from('requests').delete().eq('id', requestId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  const { id, requestId } = await params
+  try {
+    const provider = getDataProvider()
+    await provider.deleteRequest(id, requestId)
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

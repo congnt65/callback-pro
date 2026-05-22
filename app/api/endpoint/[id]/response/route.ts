@@ -1,44 +1,60 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDataProvider } from '@/lib/data'
 import { cacheDel, endpointCacheKey } from '@/lib/redis'
+import type { CustomResponse } from '@/lib/types'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { data, error } = await supabase.from('endpoints').select().eq('id', id).single()
-  if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json({
-    status: data.custom_response_status,
-    headers: data.custom_response_headers,
-    body: data.custom_response_body,
-    contentType: data.custom_response_content_type,
-    delayMs: data.custom_response_delay_ms ?? 0,
-    maxRequests: data.max_requests ?? 500,
-  })
+  try {
+    const provider = getDataProvider()
+    const endpoint = await provider.getEndpoint(id)
+
+    if (endpoint == null) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      status: endpoint.custom_response_status,
+      headers: endpoint.custom_response_headers,
+      body: endpoint.custom_response_body,
+      contentType: endpoint.custom_response_content_type,
+      delayMs: endpoint.custom_response_delay_ms ?? 0,
+      maxRequests: endpoint.max_requests ?? 500,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const reqBody = await request.json()
-    const { status, headers, body: responseBody, contentType, delayMs, maxRequests } = reqBody
-    const { data, error } = await supabase
-      .from('endpoints')
-      .update({
-        custom_response_status: status ?? 200,
-        custom_response_headers: headers ?? {},
-        custom_response_body: responseBody ?? '',
-        custom_response_content_type: contentType ?? 'application/json',
-        custom_response_delay_ms: Math.max(0, Math.min(30000, Number(delayMs) || 0)),
-        max_requests: Math.max(1, Number(maxRequests) || 500),
-      })
-      .eq('id', id)
-      .select()
-      .single()
-    if (error || !data) return NextResponse.json({ error: error?.message ?? 'Update failed' }, { status: 500 })
-    // Invalidate in-process cache so the next hook hit picks up the new config
+    let reqBody: CustomResponse
+    try {
+      reqBody = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+    const { status, headers, body: responseBody, contentType, delayMs, maxRequests } = reqBody as CustomResponse
+    const provider = getDataProvider()
+    const endpoint = await provider.updateEndpointResponse(id, {
+      status,
+      headers,
+      body: responseBody,
+      contentType,
+      delayMs,
+      maxRequests,
+    })
+
+    if (endpoint == null) {
+      return NextResponse.json({ error: 'Update failed' }, { status: 500 })
+    }
+
     cacheDel(endpointCacheKey(id))
-    return NextResponse.json(data)
-  } catch {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    return NextResponse.json(endpoint)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid request'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

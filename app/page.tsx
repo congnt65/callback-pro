@@ -4,11 +4,9 @@ import {
     useState,
     useEffect,
     useCallback,
-    useRef,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { WebhookRequest } from "@/lib/types";
-import { supabase } from "@/lib/supabase";
 import WebhookList from "@/components/WebhookList";
 import type { CsvColumnKey } from "@/components/WebhookList";
 import WebhookDetail from "@/components/WebhookDetail";
@@ -55,7 +53,7 @@ function getOrCreateEndpointId(): string {
     return id;
 }
 
-type Panel = "requests" | "response";
+type Panel = "requests" | "response" | "test";
 
 export default function Home() {
     const [endpointId, setEndpointId] =
@@ -86,10 +84,26 @@ export default function Home() {
     ] = useState<Set<string>>(
         new Set(),
     );
-    const realtimeRef =
-        useRef<ReturnType<
-            typeof supabase.channel
-        > | null>(null);
+
+    const markRequestAsNew =
+        useCallback((id: string) => {
+            setNewRequestIds((prev) =>
+                new Set([
+                    ...prev,
+                    id,
+                ]),
+            );
+            setTimeout(() => {
+                setNewRequestIds(
+                    (prev) => {
+                        const next =
+                            new Set(prev);
+                        next.delete(id);
+                        return next;
+                    },
+                );
+            }, 2000);
+        }, []);
 
     useEffect(() => {
         const id =
@@ -98,6 +112,102 @@ export default function Home() {
         initEndpoint(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const refreshEndpointState =
+        useCallback(
+            async (
+                id: string,
+                markNew = false,
+            ) => {
+                const [
+                    requestsRes,
+                    endpointRes,
+                ] = await Promise.all([
+                    fetch(
+                        "/api/requests/" + id,
+                    ),
+                    fetch(
+                        "/api/endpoint/" +
+                            id,
+                    ),
+                ]);
+
+                const requestsData =
+                    await requestsRes.json();
+                const nextRequests =
+                    Array.isArray(
+                        requestsData,
+                    )
+                        ? requestsData
+                        : [];
+
+                setRequests((prev) => {
+                    if (markNew) {
+                        const knownIds =
+                            new Set(
+                                prev.map(
+                                    (req) =>
+                                        req.id,
+                                ),
+                            );
+
+                        for (const req of nextRequests) {
+                            if (
+                                !knownIds.has(
+                                    req.id,
+                                )
+                            ) {
+                                markRequestAsNew(
+                                    req.id,
+                                );
+                            }
+                        }
+                    }
+
+                    return nextRequests;
+                });
+
+                if (
+                    selectedRequest !=
+                    null
+                ) {
+                    const nextSelected =
+                        nextRequests.find(
+                            (
+                                req,
+                            ) =>
+                                req.id ===
+                                selectedRequest.id,
+                        ) ?? null;
+                    setSelectedRequest(
+                        nextSelected,
+                    );
+                }
+
+                const endpointData =
+                    await endpointRes.json();
+                if (
+                    endpointData.error ==
+                    null
+                ) {
+                    setRequestCount(
+                        Math.max(
+                            nextRequests.length,
+                            endpointData.request_count ??
+                                0,
+                        ),
+                    );
+                    setMaxRequests(
+                        endpointData.max_requests ??
+                            500,
+                    );
+                }
+            },
+            [
+                markRequestAsNew,
+                selectedRequest,
+            ],
+        );
 
     const initEndpoint = useCallback(
         async (
@@ -115,129 +225,38 @@ export default function Home() {
                         },
                         body: JSON.stringify(
                             { id },
-                        ),
+                       ),
                     },
                 );
             }
-            const res = await fetch(
-                "/api/requests/" + id,
+            await refreshEndpointState(
+               id,
+               false,
             );
-            const data =
-                await res.json();
-            const requests =
-                Array.isArray(data)
-                    ? data
-                    : [];
-            setRequests(requests);
-            const epRes = await fetch(
-                "/api/endpoint/" + id,
-            );
-            const ep =
-                await epRes.json();
-            if (ep.error == null) {
-                setRequestCount(
-                    Math.max(
-                        requests.length,
-                        ep.request_count ??
-                            0,
-                    ),
-                );
-                setMaxRequests(
-                    ep.max_requests ??
-                        500,
-                );
-            }
             setLoading(false);
         },
-        [],
+        [refreshEndpointState],
     );
 
     useEffect(() => {
         if (endpointId == null) return;
+        const interval =
+            window.setInterval(() => {
+               void refreshEndpointState(
+                   endpointId,
+                   true,
+               );
+            }, 2000);
 
-        const channel = supabase
-            .channel(
-                "requests:" +
-                    endpointId,
-            )
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "requests",
-                    filter:
-                        "endpoint_id=eq." +
-                        endpointId,
-                },
-                (payload) => {
-                    const newReq =
-                        payload.new as WebhookRequest;
-                    setRequests(
-                        (prev) => [
-                            newReq,
-                            ...prev,
-                        ],
-                    );
-                    setRequestCount(
-                        (prev) =>
-                            prev + 1,
-                    );
-                    setNewRequestIds(
-                        (prev) =>
-                            new Set([
-                                ...prev,
-                                newReq.id,
-                            ]),
-                    );
-                    setTimeout(() => {
-                        setNewRequestIds(
-                            (prev) => {
-                                const next =
-                                    new Set(
-                                        prev,
-                                    );
-                                next.delete(
-                                    newReq.id,
-                                );
-                                return next;
-                            },
-                        );
-                    }, 2000);
-                },
-            )
-            .on(
-                "postgres_changes",
-                {
-                    event: "DELETE",
-                    schema: "public",
-                    table: "requests",
-                    filter:
-                        "endpoint_id=eq." +
-                        endpointId,
-                },
-                (payload) => {
-                    setRequests(
-                        (prev) =>
-                            prev.filter(
-                                (r) =>
-                                    r.id !==
-                                    payload
-                                        .old
-                                        .id,
-                            ),
-                    );
-                },
-            )
-            .subscribe();
-
-        realtimeRef.current = channel;
         return () => {
-            supabase.removeChannel(
-                channel,
+            window.clearInterval(
+               interval,
             );
         };
-    }, [endpointId]);
+    }, [
+        endpointId,
+        refreshEndpointState,
+    ]);
 
     async function handleSelect(
         req: WebhookRequest,
@@ -725,10 +744,8 @@ export default function Home() {
                     style={{
                         borderColor:
                             "#30363d",
-                        width: 300,
-                        minWidth: 200,
                     }}
-                    className="flex flex-col border-r shrink-0 overflow-hidden"
+                    className={`flex-col border-r overflow-hidden w-full md:w-75 md:min-w-50 md:shrink-0 ${selectedRequest ? "hidden md:flex" : "flex"}`}
                 >
                     <div
                         style={{
@@ -781,6 +798,28 @@ export default function Home() {
                         >
                             Response
                         </button>
+                        <button
+                            onClick={() =>
+                                setPanel(
+                                    "test",
+                                )
+                            }
+                            style={{
+                                color:
+                                    panel ===
+                                    "test"
+                                        ? "#e6edf3"
+                                        : "#8b949e",
+                                borderBottom:
+                                    panel ===
+                                    "test"
+                                        ? "2px solid #58a6ff"
+                                        : "2px solid transparent",
+                            }}
+                            className="flex-1 text-xs py-2 px-3 transition-colors hover:text-white"
+                        >
+                            Test
+                        </button>
                     </div>
 
                     <div className="flex-1 overflow-hidden">
@@ -820,17 +859,88 @@ export default function Home() {
                                     newRequestIds
                                 }
                             />
-                        ) : (
+                        ) : panel ===
+                          "response" ? (
                             <ResponseConfig
                                 endpointId={
                                     endpointId
                                 }
+                                onMaxRequestsChange={
+                                    setMaxRequests
+                                }
                             />
+                        ) : (
+                            <div className="flex flex-col h-full overflow-y-auto p-4 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {[
+                                        {
+                                            label: "Requests captured",
+                                            value: String(
+                                                requestCount,
+                                            ),
+                                        },
+                                        {
+                                            label: "Capacity remaining",
+                                            value: String(
+                                                Math.max(
+                                                    0,
+                                                    maxRequests -
+                                                        requestCount,
+                                                ),
+                                            ),
+                                        },
+                                    ].map(
+                                        ({
+                                            label,
+                                            value,
+                                        }) => (
+                                            <div
+                                                key={
+                                                    label
+                                                }
+                                                style={{
+                                                    backgroundColor:
+                                                        "#161b22",
+                                                    borderColor:
+                                                        "#30363d",
+                                                }}
+                                                className="rounded border p-3 flex flex-col gap-1"
+                                            >
+                                                <span
+                                                    style={{
+                                                        color: "#e6edf3",
+                                                    }}
+                                                    className="text-lg font-bold font-mono"
+                                                >
+                                                    {
+                                                        value
+                                                    }
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        color: "#6e7681",
+                                                    }}
+                                                    className="text-xs"
+                                                >
+                                                    {
+                                                        label
+                                                    }
+                                                </span>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                                <TryItOut
+                                    endpointId={
+                                        endpointId
+                                    }
+                                />
+                            </div>
                         )}
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden">
+                <div className={`flex-1 overflow-hidden ${selectedRequest == null ? "hidden md:block" : ""}`}>
                     {selectedRequest ? (
                         <WebhookDetail
                             request={
@@ -891,7 +1001,7 @@ export default function Home() {
                             </div>
 
                             {/* Stats row */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {[
                                     {
                                         label: "Requests captured",

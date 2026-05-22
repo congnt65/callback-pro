@@ -34,6 +34,7 @@ export interface Database {
           custom_response_content_type?: string
           custom_response_delay_ms?: number
         }
+        Relationships: []
       }
       requests: {
         Row: {
@@ -65,8 +66,26 @@ export interface Database {
         Update: {
           is_read?: boolean
         }
+        Relationships: []
       }
     }
+    Views: Record<string, never>
+    Functions: {
+      decrement_request_count: {
+        Args: {
+          p_endpoint_id: string
+        }
+        Returns: undefined
+      }
+      try_increment_request_count: {
+        Args: {
+          endpoint_id: string
+        }
+        Returns: boolean
+      }
+    }
+    Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }
 

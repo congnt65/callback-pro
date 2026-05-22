@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { getDataProvider } from '@/lib/data'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { data, error } = await supabase.from("endpoints").select().eq("id", id).single()
-  if (error) return NextResponse.json({ error: "Endpoint not found" }, { status: 404 })
-  return NextResponse.json(data)
+  try {
+    const provider = getDataProvider()
+    const endpoint = await provider.getEndpoint(id)
+
+    if (endpoint == null) {
+      return NextResponse.json({ error: "Endpoint not found" }, { status: 404 })
+    }
+
+    return NextResponse.json(endpoint)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

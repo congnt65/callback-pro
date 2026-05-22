@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { getDataProvider } from '@/lib/data'
 
 export async function POST(request: Request) {
   try {
@@ -11,23 +11,15 @@ export async function POST(request: Request) {
       // Empty body is allowed. We'll generate a new id below.
     }
 
-    const id = (requestedId?.trim() || crypto.randomUUID())
+    const provider = getDataProvider()
+    const result = await provider.createEndpoint(requestedId ?? undefined)
 
-    const { data, error } = await supabase
-      .from("endpoints")
-      .insert({ id, custom_response_body: JSON.stringify({ message: "ok" }) })
-      .select()
-      .single()
-
-    if (error) {
-      if (error.code === "23505") {
-        const { data: existing } = await supabase.from("endpoints").select().eq("id", id).single()
-        return NextResponse.json({ ...existing, created: false })
-      }
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-    return NextResponse.json({ ...data, created: true }, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 })
+    return NextResponse.json(
+      { ...result.endpoint, created: result.created },
+      { status: result.created ? 201 : 200 }
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid request'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

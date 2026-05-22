@@ -5,7 +5,7 @@ A real-time webhook inspector and debugger. Generate unique endpoints, capture i
 ## Features
 
 - **Instant Endpoints** — Generate a unique webhook URL in one click, no signup required
-- **Real-time Inspection** — See incoming requests instantly via Supabase Realtime subscriptions
+- **Live Inspection** — See incoming requests refresh automatically via polling
 - **NEW Badge** — Freshly arrived requests flash green for 2 seconds so you never miss them
 - **Full Request Details** — Inspect method, path, headers, query params, body, IP, and timestamp
 - **Duration Tracking** — Server-side processing time (ms) stamped on every request via middleware
@@ -23,7 +23,7 @@ A real-time webhook inspector and debugger. Generate unique endpoints, capture i
 
 - [Next.js 16](https://nextjs.org/) — Full-stack React framework (App Router)
 - [TypeScript](https://www.typescriptlang.org/) — Type safety
-- [Supabase](https://supabase.com/) — PostgreSQL database + Realtime subscriptions
+- [Supabase](https://supabase.com/) / PostgreSQL / MongoDB — selectable persistence providers behind a shared data layer
 - [Tailwind CSS 4](https://tailwindcss.com/) — Styling
 
 ## Getting Started
@@ -31,7 +31,7 @@ A real-time webhook inspector and debugger. Generate unique endpoints, capture i
 ### Prerequisites
 
 - Node.js 18+
-- A [Supabase](https://supabase.com/) project
+- Node.js can reach your selected database provider
 
 ### 1. Clone the repository
 
@@ -48,30 +48,47 @@ yarn install
 
 ### 3. Set up the database
 
-In your Supabase project, open the **SQL Editor** and run the contents of [`lib/schema.sql`](lib/schema.sql).
+If you use **Supabase** or **PostgreSQL**, run the contents of [`lib/schema.sql`](lib/schema.sql) against your database.
 
-If you have an existing install, also run the migration statements at the bottom of that file:
+If you have an existing SQL install, also run the migration statements at the bottom of that file:
 
 ```sql
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS duration_ms integer;
 ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS custom_response_delay_ms integer DEFAULT 0;
 ```
 
+If you use **MongoDB**, the app creates documents in the configured database automatically.
+
 ### 4. Configure environment variables
 
 Create a `.env.local` file in the project root:
 
 ```env
+# Supabase
+DATABASE_PROVIDER=supabase
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-You can find these values in your Supabase project under **Project Settings → API**.
+```env
+# PostgreSQL
+DATABASE_PROVIDER=postgres
+DATABASE_URL=postgresql://user:password@host:5432/database
+```
+
+```env
+# MongoDB
+DATABASE_PROVIDER=mongodb
+MONGODB_URL=mongodb://user:password@host:27017/?replicaSet=rs0
+MONGODB_DB_NAME=callback-pro
+```
+
+You can find the Supabase values under **Project Settings → API**. For PostgreSQL and MongoDB, use the direct connection string from your provider.
 
 ### 5. Run the development server
 
 ```bash
-yarn dev
+npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
@@ -110,7 +127,8 @@ components/
   TryItOut.tsx                  # Built-in HTTP tester
 lib/
   schema.sql                    # Database schema + migration statements
-  supabase.ts                   # Supabase client
+  data/                         # Runtime-selectable data providers
+  supabase.ts                   # Lazy Supabase client bootstrap
   types.ts                      # Shared TypeScript types
   redis.ts                      # In-process endpoint config cache
 middleware.ts                   # Stamps X-Request-Start on hook requests for accurate duration
@@ -118,12 +136,16 @@ middleware.ts                   # Stamps X-Request-Start on hook requests for ac
 
 ## Deployment
 
-The easiest way to deploy is with [Vercel](https://vercel.com/). Add your environment variables in the Vercel project settings:
+The easiest way to deploy is with [Vercel](https://vercel.com/). Add the environment variables for your selected provider in the project settings:
 
-| Variable                        | Description               |
-| ------------------------------- | ------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key    |
+| Variable                        | Description                          |
+| ------------------------------- | ------------------------------------ |
+| `DATABASE_PROVIDER`             | `supabase`, `postgres`, or `mongodb` |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL                 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key                    |
+| `DATABASE_URL`                  | PostgreSQL connection string         |
+| `MONGODB_URL`                   | MongoDB connection string            |
+| `MONGODB_DB_NAME`               | Optional MongoDB database name       |
 
 Then push to your connected repository and Vercel will deploy automatically.
 

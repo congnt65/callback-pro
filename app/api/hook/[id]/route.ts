@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDataProvider } from '@/lib/data'
 import { cacheGet, cacheSet, endpointCacheKey } from '@/lib/redis'
 import { DEFAULT_MAX_REQUESTS } from '@/lib/types'
+import type { Endpoint } from '@/lib/types'
 
 export async function handler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Use the timestamp injected by middleware (when request first arrived) for accurate duration
   const requestStart = Number(request.headers.get('X-Request-Start')) || Date.now()
   const { id } = await params
+  const provider = getDataProvider()
 
   // Try in-process cache first (zero latency), then fall back to Supabase
   const cacheKey = endpointCacheKey(id)
@@ -15,14 +17,19 @@ export async function handler(request: NextRequest, { params }: { params: Promis
     request.text().then(t => t || null).catch(() => null),
   ])
 
-  let endpoint: Record<string, unknown> | null = cached
+  let endpoint: Endpoint | null = cached as Endpoint | null
 
   if (endpoint == null) {
-    const { data, error } = await supabase.from('endpoints').select().eq('id', id).single()
-    if (error || data == null) {
+    try {
+      endpoint = await provider.getEndpoint(id)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      return NextResponse.json({ error: message }, { status: 500 })
+    }
+
+    if (endpoint == null) {
       return NextResponse.json({ error: 'Endpoint not found' }, { status: 404 })
     }
-    endpoint = data as Record<string, unknown>
     cacheSet(cacheKey, endpoint)
   }
 
@@ -30,8 +37,16 @@ export async function handler(request: NextRequest, { params }: { params: Promis
   // A single conditional UPDATE in Postgres eliminates the race condition that would
   // occur if we did a separate SELECT (or cache read) followed by an UPDATE.
   const maxRequests = (endpoint.max_requests as number) ?? DEFAULT_MAX_REQUESTS
-  const { data: allowed, error: rpcError } = await supabase.rpc('try_increment_request_count', { endpoint_id: id })
-  if (rpcError || !allowed) {
+  let allowed = false
+
+  try {
+    allowed = await provider.tryIncrementRequestCount(id)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+
+  if (!allowed) {
     return NextResponse.json(
       { error: `Request limit exceeded. Max ${maxRequests} requests per endpoint.` },
       { status: 429 }
@@ -83,13 +98,7 @@ export async function handler(request: NextRequest, { params }: { params: Promis
       duration_ms,
     }
 
-    const { error: insertError } = await supabase.from('requests').insert(requestData)
-
-    // Fallback: if insert failed (e.g. duration_ms column not yet migrated), retry without it
-    if (insertError) {
-      const { duration_ms: _d, ...requestDataFallback } = requestData
-      await supabase.from('requests').insert(requestDataFallback)
-    }
+    await provider.insertRequest(requestData)
 
     // Keep the cache up-to-date so consecutive requests in the same warm instance
     // don't re-fetch from DB. The authoritative increment is already done by the
