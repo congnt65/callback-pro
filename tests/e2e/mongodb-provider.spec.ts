@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 
@@ -202,4 +202,17 @@ test('documentation mentions mongodb runtime configuration', async () => {
   expect(readme).toContain('DATABASE_PROVIDER=mongodb')
   expect(readme).toContain('MONGODB_URL=')
   expect(instructions).toContain('mongodb')
+})
+
+test('endpoint cache uses neutral naming instead of redis references', async () => {
+  const readme = readFileSync('README.md', 'utf8')
+  const instructions = readFileSync('.github/copilot-instructions.md', 'utf8')
+  const envLocal = readFileSync('.env.local', 'utf8')
+
+  expect(existsSync('lib/endpoint-cache.ts')).toBe(true)
+  expect(existsSync('lib/redis.ts')).toBe(false)
+  expect(readme).not.toContain('redis.ts')
+  expect(instructions).toContain('lib/endpoint-cache.ts')
+  expect(instructions).not.toContain('lib/redis.ts')
+  expect(envLocal).not.toContain('REDIS_URL=')
 })
