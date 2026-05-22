@@ -13,7 +13,10 @@ const cache = new Map<string, CacheEntry>()
 export function cacheGet(key: string): Record<string, unknown> | null {
   const entry = cache.get(key)
   if (!entry) return null
-  if (Date.now() > entry.expiresAt) { cache.delete(key); return null }
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(key)
+    return null
+  }
   return entry.value
 }
 

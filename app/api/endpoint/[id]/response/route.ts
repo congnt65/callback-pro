@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDataProvider } from '@/lib/data'
-import { cacheDel, endpointCacheKey } from '@/lib/redis'
+import { cacheDel, endpointCacheKey } from '@/lib/endpoint-cache'
 import type { CustomResponse } from '@/lib/types'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {

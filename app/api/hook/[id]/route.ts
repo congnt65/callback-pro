@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server'
 import { getDataProvider } from '@/lib/data'
-import { cacheGet, cacheSet, endpointCacheKey } from '@/lib/redis'
+import { cacheGet, cacheSet, endpointCacheKey } from '@/lib/endpoint-cache'
 import { DEFAULT_MAX_REQUESTS } from '@/lib/types'
 import type { Endpoint } from '@/lib/types'
 
