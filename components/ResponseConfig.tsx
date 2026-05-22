@@ -8,6 +8,7 @@ import { CustomResponse } from "@/lib/types";
 
 interface Props {
     endpointId: string;
+    onMaxRequestsChange?: (value: number) => void;
 }
 
 const STATUS_CODES = [
@@ -36,6 +37,7 @@ const STATUS_LABELS: Record<
 
 export default function ResponseConfig({
     endpointId,
+    onMaxRequestsChange,
 }: Props) {
     const [config, setConfig] =
         useState<CustomResponse>({
@@ -112,6 +114,7 @@ export default function ResponseConfig({
                 },
             );
             setSaved(true);
+            onMaxRequestsChange?.(config.maxRequests);
             setTimeout(
                 () => setSaved(false),
                 2000,
@@ -401,6 +404,59 @@ export default function ResponseConfig({
                         className="text-xs"
                     >
                         ms (0 – 30000)
+                    </span>
+                </div>
+            </div>
+
+            <div>
+                <label
+                    style={{
+                        color: "#8b949e",
+                    }}
+                    className="text-xs block mb-1.5"
+                >
+                    Max Requests
+                </label>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="number"
+                        min={1}
+                        max={10000}
+                        step={1}
+                        value={
+                            config.maxRequests
+                        }
+                        onChange={(e) =>
+                            setConfig(
+                                (
+                                    prev,
+                                ) => ({
+                                    ...prev,
+                                    maxRequests:
+                                        Math.max(
+                                            1,
+                                            Number(
+                                                e
+                                                    .target
+                                                    .value,
+                                            ) ||
+                                                500,
+                                        ),
+                                }),
+                            )
+                        }
+                        style={
+                            inputStyle
+                        }
+                        className="text-xs px-2 py-1.5 rounded border w-28"
+                    />
+                    <span
+                        style={{
+                            color: "#6e7681",
+                        }}
+                        className="text-xs"
+                    >
+                        per endpoint (1 – 10,000)
                     </span>
                 </div>
             </div>
