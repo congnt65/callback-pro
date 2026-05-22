@@ -202,6 +202,11 @@ test('mongodb routes clear request history and reset the counter', async ({ requ
 
 test('optional local files can be missing', async () => {
   expect(readOptionalFile('missing-local-file-that-should-not-exist.txt')).toBeNull()
+
+  // Ensure the helper returns content for tracked existing files
+  const readmeContent = readOptionalFile('README.md')
+  expect(readmeContent).not.toBeNull()
+  expect(readmeContent).toBe(readFileSync('README.md', 'utf8'))
 })
 
 test('documentation mentions mongodb runtime configuration', async () => {
