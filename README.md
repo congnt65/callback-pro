@@ -130,7 +130,7 @@ lib/
   data/                         # Runtime-selectable data providers
   supabase.ts                   # Lazy Supabase client bootstrap
   types.ts                      # Shared TypeScript types
-  redis.ts                      # In-process endpoint config cache
+  endpoint-cache.ts             # In-process endpoint config cache
 middleware.ts                   # Stamps X-Request-Start on hook requests for accurate duration
 ```
 
